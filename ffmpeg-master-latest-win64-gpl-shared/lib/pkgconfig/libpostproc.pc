@@ -1,13 +1,3 @@
-prefix=${pcfiledir}/../..
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: libpostproc
-Description: FFmpeg postprocessing library
-Version: 58.4.100
-Requires: 
-Requires.private: libavutil >= 59.55.100
-Conflicts:
-Libs: -L${libdir}  -lpostproc 
-Cflags: -I${includedir}
+version https://git-lfs.github.com/spec/v1
+oid sha256:11a318263bb25bdfa809e6ba3e1fcc84574e03fc640ab066808db242b2b8c3f4
+size 296

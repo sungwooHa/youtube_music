@@ -1,13 +1,3 @@
-prefix=${pcfiledir}/../..
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: libavutil
-Description: FFmpeg utility library
-Version: 59.55.100
-Requires: 
-Requires.private: 
-Conflicts:
-Libs: -L${libdir}  -lavutil 
-Cflags: -I${includedir}
+version https://git-lfs.github.com/spec/v1
+oid sha256:8b868232536ae44b286ca13d3388facb276dddcf7706624cac13e5a3db1d551e
+size 264
