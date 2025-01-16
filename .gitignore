@@ -1,0 +1,6 @@
+# .gitignore 파일 생성
+myenv/
+__pycache__/
+*.pyc
+.env
+youtube_downloader_config.json
