@@ -5,6 +5,7 @@ import os
 import json
 from collections import deque
 import threading
+import sys
 
 class YouTubeDownloader:
     def __init__(self, root):
@@ -93,21 +94,54 @@ class YouTubeDownloader:
 
     def select_ffmpeg(self):
         """FFmpeg 폴더 선택"""
-        ffmpeg_folder = filedialog.askdirectory(title="FFmpeg가 설치된 폴더를 선택하세요")
-        if ffmpeg_folder:
-            # MacOS에서는 확장자가 없음
-            ffmpeg_path = os.path.join(ffmpeg_folder, 'ffmpeg')
-            ffprobe_path = os.path.join(ffmpeg_folder, 'ffprobe')
+        if sys.platform == "darwin":  # macOS
+            # Homebrew로 설치된 FFmpeg 경로 자동 감지
+            common_paths = [
+                "/opt/homebrew/bin",  # Apple Silicon Mac
+                "/usr/local/bin",     # Intel Mac
+                "/usr/bin"            # System default
+            ]
             
-            if os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path):
-                self.ffmpeg_path = ffmpeg_folder
-                self.ffmpeg_label.config(text=f"FFmpeg 경로: {ffmpeg_folder}")
-                self.update_status("FFmpeg 설정이 완료되었습니다.")
-                self.save_config()
-            else:
-                messagebox.showerror("오류", 
-                    "선택한 폴더에서 FFmpeg를 찾을 수 없습니다.\n"
-                    "ffmpeg와 ffprobe가 있는 폴더를 선택해주세요.")
+            for path in common_paths:
+                ffmpeg_path = os.path.join(path, 'ffmpeg')
+                ffprobe_path = os.path.join(path, 'ffprobe')
+                if os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path):
+                    self.ffmpeg_path = path
+                    self.ffmpeg_label.config(text=f"FFmpeg 경로: {path}")
+                    self.update_status("FFmpeg 설정이 완료되었습니다.")
+                    self.save_config()
+                    return
+            
+            # 자동 감지 실패시 수동 선택
+            ffmpeg_folder = filedialog.askdirectory(title="FFmpeg가 설치된 폴더를 선택하세요")
+            if ffmpeg_folder:
+                ffmpeg_path = os.path.join(ffmpeg_folder, 'ffmpeg')
+                ffprobe_path = os.path.join(ffmpeg_folder, 'ffprobe')
+                
+                if os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path):
+                    self.ffmpeg_path = ffmpeg_folder
+                    self.ffmpeg_label.config(text=f"FFmpeg 경로: {ffmpeg_folder}")
+                    self.update_status("FFmpeg 설정이 완료되었습니다.")
+                    self.save_config()
+                else:
+                    messagebox.showerror("오류", 
+                        "선택한 폴더에서 FFmpeg를 찾을 수 없습니다.\n"
+                        "ffmpeg와 ffprobe가 있는 폴더를 선택해주세요.")
+        else:  # Windows
+            ffmpeg_folder = filedialog.askdirectory(title="FFmpeg가 설치된 폴더를 선택하세요")
+            if ffmpeg_folder:
+                ffmpeg_path = os.path.join(ffmpeg_folder, 'ffmpeg.exe')
+                ffprobe_path = os.path.join(ffmpeg_folder, 'ffprobe.exe')
+                
+                if os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path):
+                    self.ffmpeg_path = ffmpeg_folder
+                    self.ffmpeg_label.config(text=f"FFmpeg 경로: {ffmpeg_folder}")
+                    self.update_status("FFmpeg 설정이 완료되었습니다.")
+                    self.save_config()
+                else:
+                    messagebox.showerror("오류", 
+                        "선택한 폴더에서 FFmpeg를 찾을 수 없습니다.\n"
+                        "ffmpeg.exe와 ffprobe.exe가 있는 폴더를 선택해주세요.")
 
     def progress_hook(self, d):
         """다운로드 진행 상황 업데이트"""
