@@ -5,25 +5,17 @@ import os
 import json
 from collections import deque
 import threading
-import sys
-
-def get_resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    
-    return os.path.join(base_path, relative_path)
 
 class YouTubeDownloader:
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube Music Downloader")
         
-        # 기본 저장 경로 설정
-        self.save_path = os.path.join(os.path.expanduser("~"), "Downloads", "YouTube Music")
+        # 설정 파일 경로
+        self.config_file = 'youtube_downloader_config.json'
+        
+        # 설정 불러오기
+        self.load_config()
         
         # 작업 상태
         self.is_downloading = False
@@ -31,17 +23,55 @@ class YouTubeDownloader:
         # GUI 구성
         self.create_gui()
         
-        # 프로그램 종료 시 처리
+        # 프로그램 종료 시 설정 저장
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def load_config(self):
+        """설정 파일 불러오기"""
+        default_config = {
+            'ffmpeg_path': '',
+            'save_path': os.path.join(os.path.expanduser("~"), "Downloads", "YouTube Music")
+        }
+        
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    
+                    self.ffmpeg_path = config.get('ffmpeg_path', default_config['ffmpeg_path'])
+                    self.save_path = config.get('save_path', default_config['save_path'])
+            else:
+                self.ffmpeg_path = default_config['ffmpeg_path']
+                self.save_path = default_config['save_path']
+                self.recent_urls = deque(maxlen=10)
+        except:
+            self.ffmpeg_path = default_config['ffmpeg_path']
+            self.save_path = default_config['save_path']
+
+    def save_config(self):
+        """설정 파일 저장"""
+        config = {
+            'ffmpeg_path': self.ffmpeg_path,
+            'save_path': self.save_path
+        }
+        
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.update_status(f"설정 저장 중 오류 발생: {str(e)}")
 
     def on_closing(self):
         """프로그램 종료 시 처리"""
         if self.is_downloading:
             if messagebox.askokcancel("종료 확인", "다운로드가 진행 중입니다. 정말 종료하시겠습니까?"):
                 self.is_downloading = False
+                self.save_config()
                 self.root.destroy()
         else:
+            self.save_config()
             self.root.destroy()
+
 
     def update_status(self, message):
         """상태 메시지 업데이트"""
@@ -59,22 +89,25 @@ class YouTubeDownloader:
             self.save_path = new_path
             self.save_path_label.config(text=f"현재 저장 경로:\n{self.save_path}")
             self.update_status(f"저장 경로가 변경되었습니다: {self.save_path}")
+            self.save_config()
 
     def select_ffmpeg(self):
         """FFmpeg 폴더 선택"""
         ffmpeg_folder = filedialog.askdirectory(title="FFmpeg가 설치된 폴더를 선택하세요")
         if ffmpeg_folder:
-            ffmpeg_path = os.path.join(ffmpeg_folder, 'ffmpeg.exe')
-            ffprobe_path = os.path.join(ffmpeg_folder, 'ffprobe.exe')
+            # MacOS에서는 확장자가 없음
+            ffmpeg_path = os.path.join(ffmpeg_folder, 'ffmpeg')
+            ffprobe_path = os.path.join(ffmpeg_folder, 'ffprobe')
             
             if os.path.exists(ffmpeg_path) and os.path.exists(ffprobe_path):
                 self.ffmpeg_path = ffmpeg_folder
                 self.ffmpeg_label.config(text=f"FFmpeg 경로: {ffmpeg_folder}")
                 self.update_status("FFmpeg 설정이 완료되었습니다.")
+                self.save_config()
             else:
                 messagebox.showerror("오류", 
                     "선택한 폴더에서 FFmpeg를 찾을 수 없습니다.\n"
-                    "ffmpeg.exe와 ffprobe.exe가 있는 폴더를 선택해주세요.")
+                    "ffmpeg와 ffprobe가 있는 폴더를 선택해주세요.")
 
     def progress_hook(self, d):
         """다운로드 진행 상황 업데이트"""
@@ -95,6 +128,10 @@ class YouTubeDownloader:
 
     def start_download_thread(self):
         """다운로드 스레드 시작"""
+        if not self.ffmpeg_path:
+            messagebox.showerror("오류", "FFmpeg 폴더를 먼저 선택해주세요.")
+            return
+            
         urls = self.url_text.get("1.0", tk.END).strip().split('\n')
         urls = [url.strip() for url in urls if url.strip()]  # 빈 줄 제거
         
@@ -135,38 +172,41 @@ class YouTubeDownloader:
                     raise Exception("다운로드가 취소되었습니다.")
                 self.root.after(0, self.progress_hook, d)
             
-            # FFmpeg 경로 설정 및 디버깅
-            if getattr(sys, 'frozen', False):
-                # PyInstaller로 패키징된 경우 (빌드 모드)
-                base_path = sys._MEIPASS
-                ffmpeg_path = base_path  # 실행 파일과 같은 위치
-            else:
-                # 일반 Python 실행의 경우 (디버그 모드)
-                base_path = os.path.abspath(os.path.dirname(__file__))
-                ffmpeg_path = os.path.abspath('ffmpeg-master-latest-win64-gpl-shared/bin')  # 프로젝트 내 FFmpeg 폴더
-            
-            # 디버그 정보 출력
-            print("\nFFmpeg 경로 디버그 정보:")
-            print("실행 모드:", "빌드" if getattr(sys, 'frozen', False) else "디버그")
-            print("Base path:", base_path)
-            print("FFmpeg path:", ffmpeg_path)
-            print("FFmpeg exists:", os.path.exists(os.path.join(ffmpeg_path, 'ffmpeg.exe')))
-            print("FFprobe exists:", os.path.exists(os.path.join(ffmpeg_path, 'ffprobe.exe')))
-            print("Current working directory:", os.getcwd())
-            
-            if not os.path.exists(os.path.join(ffmpeg_path, 'ffmpeg.exe')):
-                raise FileNotFoundError(f"FFmpeg 파일을 찾을 수 없습니다.\n경로: {ffmpeg_path}")
-            
             ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
+                # 오디오 포맷 우선순위 설정
+                'format': 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+                
+                'postprocessors': [
+                    {
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '0',  # 최고 품질 설정
+                        'nopostoverwrites': True,  # 원본 품질이 더 낮을 경우 강제 변환하지 않음
+                    },
+                    {
+                        'key': 'FFmpegMetadata',
+                        'add_metadata': True,
+                    },
+                    {
+                        'key': 'EmbedThumbnail',  # 썸네일 삽입은 마지막에 실행
+                    }
+                ],
                 'progress_hooks': [my_hook],
                 'outtmpl': os.path.join(self.save_path, '%(title)s.%(ext)s'),
-                'ffmpeg_location': ffmpeg_path,  # FFmpeg 실행 파일이 있는 디렉토리
+                'ffmpeg_location': self.ffmpeg_path,
+                # FFmpeg 전역 옵션
+                'postprocessor_args': [
+                    '-codec:a', 'libmp3lame',
+                    '-q:a', '0',  # 최고 품질 VBR
+                    '-ar', '48000',  # 샘플레이트
+                    '-map_metadata', '0',
+                    '-id3v2_version', '3'
+                ],
+                # 추가 옵션
+                'keepvideo': False,
+                'writethumbnail': True,
+                'add_metadata': True,
+                'verbose': True,
             }
             
             total_urls = len(urls)
@@ -178,16 +218,33 @@ class YouTubeDownloader:
                     self.root.after(0, self.update_status, f"\n[{i}/{total_urls}] {url} 다운로드 시작...")
                     
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        # 먼저 영상 정보 가져오기
+                        info = ydl.extract_info(url, download=False)
+                        
+                        # 사용 가능한 포맷 정보 표시
+                        formats = info.get('formats', [])
+                        audio_formats = [f for f in formats if f.get('acodec') != 'none']
+                        if audio_formats:
+                            best_audio = max(audio_formats, key=lambda x: float(x.get('abr', 0) or 0))
+                            self.root.after(0, self.update_status, 
+                                f"선택된 오디오 포맷: {best_audio.get('format_id', 'N/A')}\n"
+                                f"코덱: {best_audio.get('acodec', 'N/A')}\n"
+                                f"비트레이트: {best_audio.get('abr', 'N/A')}kbps")
+                        
+                        # 다운로드 실행
                         error_code = ydl.download([url])
                         
                         if error_code != 0:
-                            self.root.after(0, self.update_status, f"[{i}/{total_urls}] 다운로드 실패: {url}")
+                            self.root.after(0, self.update_status, 
+                                f"[{i}/{total_urls}] 다운로드 실패: {url}")
                             continue
                         
-                    self.root.after(0, self.update_status, f"[{i}/{total_urls}] 다운로드 완료: {url}")
+                    self.root.after(0, self.update_status, 
+                        f"[{i}/{total_urls}] 다운로드 완료: {url}")
                     
                 except Exception as e:
-                    self.root.after(0, self.update_status, f"[{i}/{total_urls}] 오류 발생: {url}\n{str(e)}")
+                    self.root.after(0, self.update_status, 
+                        f"[{i}/{total_urls}] 오류 발생: {url}\n{str(e)}")
             
             if self.is_downloading:
                 self.root.after(0, self.download_complete)
@@ -226,6 +283,16 @@ class YouTubeDownloader:
 
     def create_gui(self):
         """GUI 생성"""
+        # FFmpeg 설정 프레임
+        ffmpeg_frame = ttk.LabelFrame(self.root, text="FFmpeg 설정", padding="5")
+        ffmpeg_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.ffmpeg_label = ttk.Label(ffmpeg_frame, text=f"FFmpeg 경로: {self.ffmpeg_path or '설정되지 않음'}", wraplength=350)
+        self.ffmpeg_label.pack(pady=5)
+        
+        self.ffmpeg_button = ttk.Button(ffmpeg_frame, text="FFmpeg 폴더 선택", command=self.select_ffmpeg)
+        self.ffmpeg_button.pack(pady=5)
+        
         # 저장 경로 설정 프레임
         save_frame = ttk.LabelFrame(self.root, text="저장 위치 설정", padding="5")
         save_frame.pack(fill="x", padx=10, pady=5)
