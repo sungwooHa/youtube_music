@@ -63,7 +63,12 @@ myenv\Scripts\activate
    brew install ffmpeg
    ```
 
-3. 가상 환경 생성 및 활성화
+3. 프로젝트 폴더로 이동
+   ```
+   cd ~/youtube_music-main
+   ```
+
+4. 가상 환경 생성 및 활성화
    ```bash
    # 가상환경 생성
    python3 -m venv myenv
@@ -72,12 +77,12 @@ myenv\Scripts\activate
    source myenv/bin/activate
    ```
 
-4. 필요한 패키지 설치
+5. 필요한 패키지 설치
    ```bash
    pip install -r requirements.txt
    ```
 
-5. 프로그램 실행
+6. 프로그램 실행
    ```bash
    python main.py
    ```
