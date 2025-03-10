@@ -22,12 +22,14 @@ YouTube 영상의 음원을 MP3 형식으로 다운로드하는 프로그램입�
    pip install -r requirements.txt
    ```
 
-4. FFmpeg 설정
-   - 프로그램과 같은 폴더에 있는 `ffmpeg-master-latest-win64-gpl-shared` 폴더 안의 `bin` 폴더를 프로그램 실행 후 선택
-
 5. 프로그램 실행
    ```bash
    python main.py
+   ```
+
+4. FFmpeg 설정
+   ```
+   //프로그램 실행 후 'FFmepeg 설정' 에 `ffmpeg-master-latest-win64-gpl-shared` 폴더 안의 `bin` 폴더 선택
    ```
 
 ### Windows PowerShell 실행 관련 주의사항
@@ -69,20 +71,20 @@ myenv\Scripts\activate
    ```
 
 4. 가상 환경 생성 및 활성화
-   ```bash
-   # 가상환경 생성
-   python3 -m venv myenv
+     ```bash
+     # 가상환경 생성
+     python3 -m venv myenv
 
-   # 가상환경 활성화 (MacOS)
-   source myenv/bin/activate
-   ```
+     # 가상환경 활성화 (MacOS)
+     source myenv/bin/activate
+    ```
 
-5. 필요한 패키지 설치
+6. 필요한 패키지 설치
    ```bash
    pip install -r requirements.txt
    ```
 
-6. 프로그램 실행
+7. 프로그램 실행
    ```bash
    python main.py
    ```
